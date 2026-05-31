@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Bellman-Ford's Shortest Path - Step by Step</title>
+    <style>
+        :root {
+            --bg-1: #eef6fb;
+            --bg-2: #ffffff;
+            --panel: rgba(255, 255, 255, 0.75);
+            --muted: #6b7280;
+            --accent: #3b82f6;
+            --accent-2: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --glass-border: rgba(99, 102, 241, 0.12);
+            --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --glass-radius: 12px;
+            font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 16px;
+            background: radial-gradient(1200px 400px at 10% 10%, rgba(59, 130, 246, 0.06), transparent 8%),
+                linear-gradient(180deg, var(--bg-1), var(--bg-2));
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        h2 {
+            margin: 0 0 4px 0;
+            font-weight: 700;
+            color: #0b1220;
+            letter-spacing: 0.2px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin: 0 0 16px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        button,
+        select {
+            appearance: none;
+            border: none;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(243, 244, 246, 0.9));
+            border-radius: 10px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 6px rgba(2, 6, 23, 0.06);
+            cursor: pointer;
+            color: #0b1220;
+            font-weight: 600;
+            transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+            border: 1px solid rgba(15, 23, 42, 0.06);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(2, 6, 23, 0.08);
+        }
+
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #btnPlay {
+            background: linear-gradient(180deg, var(--accent), #2563eb);
+            color: white;
+        }
+
+        #btnPause {
+            background: linear-gradient(180deg, #f97316, #ea580c);
+            color: white;
+        }
+
+        #btnReset {
+            background: linear-gradient(180deg, #efefef, #e6eefc);
+            color: #0b1220;
+        }
+
+        #btnStep,
+        #btnPrev {
+            background: linear-gradient(180deg, #fff, #f7fafc);
+        }
+
+        label {
+            color: var(--muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Graph card */
+        .graph {
+            width: 560px;
+            height: 360px;
+            border-radius: var(--glass-radius);
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.75));
+            padding: 8px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        /* subtle grid background */
+        .graph::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px, 60px 60px;
+            pointer-events: none;
+            opacity: .6;
+        }
+
+        svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .node {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #fff, #f3f6ff);
+            border: 2px solid rgba(15, 23, 42, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #0b1220;
+            font-size: 15px;
+            transition: background .25s, transform .18s, box-shadow .18s, border-color .18s;
+            box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06), inset 0 -3px 6px rgba(255, 255, 255, 0.7);
+            user-select: none;
+            cursor: pointer;
+            z-index: 20;
+        }
+
+        .node:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.08);
+        }
+
+        /* Styling for the node dist tag inside the node */
+        .node .dist-tag {
+            font-size: 9.5px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .node.processed {
+            background: linear-gradient(180deg, #bbf7d0, #34d399);
+            border-color: rgba(16, 185, 129, 0.9);
+            color: #064e3b;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.14);
+        }
+
+        .node.processed .dist-tag {
+            color: #064e3b;
+            font-weight: 600;
+        }
+
+        .node.current {
+            background: linear-gradient(180deg, #fff3db, #ffd166);
+            border-color: rgba(249, 115, 22, 0.95);
+            transform: scale(1.08);
+            box-shadow: 0 10px 28px rgba(249, 115, 22, 0.14);
+            color: #4b2e00;
+        }
+
+        .node.current .dist-tag {
+            color: #4b2e00;
+            font-weight: 600;
+        }
+
+        /* start node badge indicator */
+        .node.start-node::after {
+            content: "START";
+            position: absolute;
+            top: -15px;
+            background: var(--accent);
+            color: white;
+            font-size: 8px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Glowing hover path highlight state */
+        .node.path-highlight {
+            background: linear-gradient(180deg, #e0f2fe, #38bdf8) !important;
+            border-color: #0284c7 !important;
+            color: #0369a1 !important;
+            transform: scale(1.06) translateY(-2px);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6) !important;
+        }
+
+        .node.path-highlight .dist-tag {
+            color: #0369a1 !important;
+            font-weight: 600;
+        }
+
+        /* edges */
+        .edge {
+            stroke: #cbd5e1;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            transition: stroke .2s, stroke-width .15s, filter .15s;
+        }
+
+        .edge.highlight {
+            stroke: var(--accent-2);
+            stroke-width: 5;
+            filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.6));
+        }
+
+        .edge.mst {
+            stroke: var(--accent);
+            stroke-width: 5.5;
+            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+        }
+
+        .edge.path-highlight {
+            stroke: #0284c7 !important;
+            stroke-width: 6.5;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8)) !important;
+        }
+
+        /* Glassmorphic edge weights */
+        .edge-weight {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #1e293b;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            user-select: none;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .edge-weight.highlight {
+            background: var(--accent-2);
+            color: white;
+            border-color: var(--accent-2);
+            transform: translate(-50%, -50%) scale(1.15);
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
+        }
+
+        .edge-weight.mst {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .edge-weight.path-highlight {
+            background: #0284c7 !important;
+            color: white !important;
+            border-color: #0284c7 !important;
+            transform: translate(-50%, -50%) scale(1.15) !important;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.5) !important;
+        }
+
+        /* Path Tooltip */
+        .path-tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            transform: translate(-50%, -120%);
+            transition: opacity 0.15s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            white-space: nowrap;
+        }
+
+        .path-tooltip span {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+
+        /* right info card */
+        .info {
+            width: 390px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(250, 250, 255, 0.7));
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .info h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0b1220;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-section {
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            padding-bottom: 10px;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: transparent;
+            margin-top: 6px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 6px 8px;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        td,
+        th {
+            padding: 5px 8px;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 13px;
+            color: #0b1220;
+        }
+
+        tbody tr {
+            border-top: 1px solid rgba(15, 23, 42, 0.04);
+            transition: background-color 0.15s ease;
+        }
+
+        tbody tr.row-updating {
+            background-color: rgba(249, 115, 22, 0.1) !important;
+        }
+
+        tbody tr:nth-child(odd):not(.row-updating) {
+            background: linear-gradient(90deg, rgba(250, 250, 255, 0.4), transparent);
+        }
+
+        /* Edge Sweep Queue visualizer */
+        .queue {
+            min-height: 48px;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            background: linear-gradient(180deg, #fffef6, #fffbf1);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: inset 0 2px 0 rgba(15, 23, 42, 0.02);
+            border: 1px solid rgba(245, 158, 11, 0.08);
+        }
+
+        .queue .item {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #0b1220;
+            font-weight: 700;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            font-size: 11.5px;
+            transition: all 0.2s ease;
+        }
+
+        .queue .item.active {
+            border-color: var(--accent-2);
+            background: var(--accent-2);
+            color: white;
+            transform: scale(1.08);
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2);
+        }
+
+        .queue .item.accepted {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+        }
+
+        .queue .item .item-val {
+            font-size: 8.5px;
+            font-weight: 500;
+            color: var(--muted);
+            margin-top: 1px;
+        }
+
+        .queue .item.active .item-val,
+        .queue .item.accepted .item-val {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* iteration badge style */
+        .iteration-badge {
+            background: var(--accent-2);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .log {
+            height: 95px;
+            overflow: auto;
+            margin-top: 6px;
+            padding: 8px;
+            border-radius: 10px;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.04);
+            font-size: 12.5px;
+            color: #0f172a;
+            box-shadow: 0 4px 12px rgba(2, 6, 23, 0.03);
+        }
+
+        .log div {
+            padding: 4px 0;
+            border-bottom: 1px dashed rgba(15, 23, 42, 0.03);
+            line-height: 1.4;
+        }
+
+        .log div:last-child {
+            border-bottom: none;
+        }
+
+        .log .highlight-text {
+            color: var(--accent-2);
+            font-weight: 600;
+        }
+
+        .log .success-text {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        @media (max-width:960px) {
+            .panel {
+                flex-direction: column;
+            }
+
+            .graph {
+                width: 100%;
+                height: 340px;
+            }
+
+            .info {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Bellman-Ford's Shortest Path Simulation</h2>
+    <p class="subtitle">Visualization of Bellman-Ford's single-source shortest path algorithm. Click any node to select the start source. <b>After completion, hover over any node to trace its shortest path from the source!</b></p>
+
+    <div class="controls">
+        <button id="btnPrev" disabled>Prev</button>
+        <button id="btnStep">Step</button>
+        <button id="btnPlay">Play</button>
+        <button id="btnPause" disabled>Pause</button>
+        <button id="btnReset">Reset</button>
+        <label>Speed:
+            <select id="speed">
+                <option value="1500">Slow</option>
+                <option value="900" selected>Normal</option>
+                <option value="400">Fast</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="panel">
+        <div>
+            <div class="graph" id="graph">
+                <svg width="560" height="360">
+                    <!-- Edges will be drawn here -->
+                </svg>
+
+                <!-- Nodes (Coordinates identical to primMST.html for perfect spatial match) -->
+                <div class="node" id="n1" style="left:50px; top:150px">1<span class="dist-tag">dist: ∞</span></div>
+                <div class="node" id="n2" style="left:330px; top:30px">2<span class="dist-tag">dist: ∞</span></div>
+                <div class="node" id="n3" style="left:150px; top:30px">3<span class="dist-tag">dist: ∞</span></div>
+                <div class="node" id="n4" style="left:150px; top:270px">4<span class="dist-tag">dist: ∞</span></div>
+                <div class="node" id="n5" style="left:330px; top:270px">5<span class="dist-tag">dist: ∞</span></div>
+                <div class="node" id="n6" style="left:450px; top:150px">6<span class="dist-tag">dist: ∞</span></div>
+
+                <!-- Edge weights positioned absolutely at exact midpoints -->
+                <div class="edge-weight" id="ew_1_4">5</div>
+                <div class="edge-weight" id="ew_1_2">10</div>
+                <div class="edge-weight" id="ew_1_3">1</div>
+                <div class="edge-weight" id="ew_2_3">8</div>
+                <div class="edge-weight" id="ew_2_6">1</div>
+                <div class="edge-weight" id="ew_2_5">1</div>
+                <div class="edge-weight" id="ew_3_4">3</div>
+                <div class="edge-weight" id="ew_3_6">6</div>
+                <div class="edge-weight" id="ew_4_5">4</div>
+                <div class="edge-weight" id="ew_5_6">2</div>
+
+                <!-- Floating path tooltip -->
+                <div class="path-tooltip" id="pathTooltip">Shortest Path: <span>1 -> 3 -> 4</span> (cost: 4)</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <div class="info-section">
+                <h4>Shortest Distances Table</h4>
+                <table id="stateTable">
+                    <thead>
+                        <tr>
+                            <th>Node</th>
+                            <th>Shortest Dist (d)</th>
+                            <th>Predecessor (p)</th>
+                            <th>Last Update</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="info-section">
+                <h4>Cheapest Edges Queue <span class="iteration-badge" id="iterationBadge">Iter: 0 / 5</span></h4>
+                <div class="queue" id="queue"></div>
+            </div>
+
+            <div class="info-section">
+                <h4>Execution Log</h4>
+                <div class="log" id="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // Unweighted graph structure & layout variables
+            const nodes = [1, 2, 3, 4, 5, 6];
+            const edges = [
+                { u: 1, v: 4, w: 5 },
+                { u: 1, v: 2, w: 10 },
+                { u: 1, v: 3, w: 1 },
+                { u: 2, v: 3, w: 8 },
+                { u: 2, v: 6, w: 1 },
+                { u: 2, v: 5, w: 1 },
+                { u: 3, v: 4, w: 3 },
+                { u: 3, v: 6, w: 6 },
+                { u: 4, v: 5, w: 4 },
+                { u: 5, v: 6, w: 2 }
+            ];
+
+            // Sort edges ascending by weight (consistent with Kruskal's queue order)
+            const sortedEdges = [...edges].sort((a, b) => a.w - b.w || a.u - b.u || a.v - b.v);
+
+            // UI elements
+            const stateTableBody = document.querySelector('#stateTable tbody');
+            const queueDiv = document.getElementById('queue');
+            const logDiv = document.getElementById('log');
+            const pathTooltip = document.getElementById('pathTooltip');
+            const iterationBadge = document.getElementById('iterationBadge');
+            const btnPrev = document.getElementById('btnPrev');
+            const btnStep = document.getElementById('btnStep');
+            const btnPlay = document.getElementById('btnPlay');
+            const btnPause = document.getElementById('btnPause');
+            const btnReset = document.getElementById('btnReset');
+            const speedSelect = document.getElementById('speed');
+            const svg = document.querySelector('#graph svg');
+
+            const nodeElems = {};
+            const distTagElems = {};
+            nodes.forEach(n => {
+                nodeElems[n] = document.getElementById('n' + n);
+                distTagElems[n] = nodeElems[n].querySelector('.dist-tag');
+            });
+
+            // Locate node center coordinates
+            const nodeCenters = {};
+            nodes.forEach(n => {
+                const el = nodeElems[n];
+                const left = parseFloat(el.style.left);
+                const top = parseFloat(el.style.top);
+                nodeCenters[n] = {
+                    x: left + el.offsetWidth / 2,
+                    y: top + el.offsetHeight / 2
+                };
+            });
+
+            // Set up SVG Edges
+            const edgeElems = {};
+            const weightElems = {};
+            edges.forEach(e => {
+                const a = nodeCenters[e.u], b = nodeCenters[e.v];
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', a.x);
+                line.setAttribute('y1', a.y);
+                line.setAttribute('x2', b.x);
+                line.setAttribute('y2', b.y);
+                line.setAttribute('class', 'edge');
+                line.setAttribute('id', `e_${e.u}_${e.v}`);
+                svg.appendChild(line);
+                
+                const key = [e.u, e.v].sort().join('_');
+                edgeElems[key] = line;
+
+                const label = document.getElementById(`ew_${e.u}_${e.v}`);
+                if (label) {
+                    const midX = (a.x + b.x) / 2;
+                    const midY = (a.y + b.y) / 2;
+                    label.style.left = `${midX}px`;
+                    label.style.top = `${midY}px`;
+                    weightElems[key] = label;
+                }
+            });
+
+            // State management
+            let startNode = 1;
+            let steps = [];
+            let currentStepIndex = 0;
+            let playing = false;
+            let timer = null;
+
+            // Generate deterministic Bellman-Ford micro-steps
+            function generateAllSteps(root) {
+                const list = [];
+                const dist = {};
+                const parent = {};
+                const lastUpdatedIter = {};
+                const edgeStatuses = {}; // edgeKey -> 'pending', 'active', 'relaxed'
+
+                nodes.forEach(n => {
+                    dist[n] = Infinity;
+                    parent[n] = null;
+                    lastUpdatedIter[n] = '-';
+                });
+                dist[root] = 0;
+
+                sortedEdges.forEach(e => {
+                    const key = [e.u, e.v].sort().join('_');
+                    edgeStatuses[key] = 'pending';
+                });
+
+                // 1. Initial State
+                list.push({
+                    type: 'init',
+                    iteration: 0,
+                    edgeIndex: -1,
+                    dist: { ...dist },
+                    parents: { ...parent },
+                    lastUpdatedIter: { ...lastUpdatedIter },
+                    edgeStatuses: { ...edgeStatuses },
+                    activeEdgeKey: null,
+                    log: `Initialized Bellman-Ford starting at <span class="highlight-text">Node ${root}</span>. dist[Node ${root}] = 0, all others = ∞. Ready to run V - 1 = 5 iterations.`,
+                    explanation: 'Bellman-Ford initialized.'
+                });
+
+                // Run V-1 = 5 iterations
+                for (let iter = 1; iter <= nodes.length - 1; iter++) {
+                    // Let's add a step to mark starting this iteration
+                    list.push({
+                        type: 'start-iteration',
+                        iteration: iter,
+                        edgeIndex: -1,
+                        dist: { ...dist },
+                        parents: { ...parent },
+                        lastUpdatedIter: { ...lastUpdatedIter },
+                        edgeStatuses: { ...edgeStatuses },
+                        activeEdgeKey: null,
+                        log: `<b>--- Starting Relaxation Iteration ${iter} / 5 ---</b>`,
+                        explanation: `Iteration ${iter} started.`
+                    });
+
+                    for (let i = 0; i < sortedEdges.length; i++) {
+                        const e = sortedEdges[i];
+                        const key = [e.u, e.v].sort().join('_');
+
+                        // Set active checking
+                        const activeStatuses = { ...edgeStatuses };
+                        activeStatuses[key] = 'active';
+
+                        // A. Check step (Evaluate both directions u -> v and v -> u)
+                        list.push({
+                            type: 'relaxing',
+                            iteration: iter,
+                            edgeIndex: i,
+                            dist: { ...dist },
+                            parents: { ...parent },
+                            lastUpdatedIter: { ...lastUpdatedIter },
+                            edgeStatuses: activeStatuses,
+                            activeEdgeKey: key,
+                            u: e.u,
+                            v: e.v,
+                            w: e.w,
+                            log: `[Iter ${iter}] Evaluating edge <span class="highlight-text">(${e.u}, ${e.v})</span> weight = ${e.w}.`,
+                            explanation: `Relaxing edge ${e.u}—${e.v}.`
+                        });
+
+                        // Evaluate actual relaxation
+                        let uRelax = false;
+                        let vRelax = false;
+                        let oldDistV = dist[e.v];
+                        let oldDistU = dist[e.u];
+
+                        // Direction u -> v
+                        if (dist[e.u] !== Infinity && dist[e.u] + e.w < dist[e.v]) {
+                            dist[e.v] = dist[e.u] + e.w;
+                            parent[e.v] = e.u;
+                            lastUpdatedIter[e.v] = `Iter ${iter}`;
+                            uRelax = true;
+                        }
+
+                        // Direction v -> u
+                        if (dist[e.v] !== Infinity && dist[e.v] + e.w < dist[e.u]) {
+                            dist[e.u] = dist[e.v] + e.w;
+                            parent[e.u] = e.v;
+                            lastUpdatedIter[e.u] = `Iter ${iter}`;
+                            vRelax = true;
+                        }
+
+                        if (uRelax || vRelax) {
+                            edgeStatuses[key] = 'relaxed';
+                            let logText = `[Iter ${iter}] <span class="success-text">Relaxation successful!</span> `;
+                            if (uRelax) logText += `Path ${e.u}➔${e.v} updated dist[Node ${e.v}] = ${dist[e.v]} (was ${oldDistV === Infinity ? '∞' : oldDistV}). `;
+                            if (vRelax) logText += `Path ${e.v}➔${e.u} updated dist[Node ${e.u}] = ${dist[e.u]} (was ${oldDistU === Infinity ? '∞' : oldDistU}). `;
+
+                            list.push({
+                                type: 'relax-success',
+                                iteration: iter,
+                                edgeIndex: i,
+                                dist: { ...dist },
+                                parents: { ...parent },
+                                lastUpdatedIter: { ...lastUpdatedIter },
+                                edgeStatuses: { ...edgeStatuses },
+                                activeEdgeKey: key,
+                                u: e.u,
+                                v: e.v,
+                                w: e.w,
+                                log: logText,
+                                explanation: `Relaxation succeeded.`
+                            });
+                        } else {
+                            list.push({
+                                type: 'relax-fail',
+                                iteration: iter,
+                                edgeIndex: i,
+                                dist: { ...dist },
+                                parents: { ...parent },
+                                lastUpdatedIter: { ...lastUpdatedIter },
+                                edgeStatuses: { ...edgeStatuses },
+                                activeEdgeKey: key,
+                                u: e.u,
+                                v: e.v,
+                                w: e.w,
+                                log: `[Iter ${iter}] Edge (${e.u}, ${e.v}) relaxation had no effect on tentative distances.`,
+                                explanation: `Relaxation had no effect.`
+                            });
+                        }
+                    }
+                }
+
+                // Iteration 6: Negative cycle check sweep
+                list.push({
+                    type: 'start-cycle-check',
+                    iteration: 6,
+                    edgeIndex: -1,
+                    dist: { ...dist },
+                    parents: { ...parent },
+                    lastUpdatedIter: { ...lastUpdatedIter },
+                    edgeStatuses: { ...edgeStatuses },
+                    activeEdgeKey: null,
+                    log: `<b>--- Iteration 6: Negative Weight Cycle Check ---</b>`,
+                    explanation: 'Checking for negative weight cycles.'
+                });
+
+                for (let i = 0; i < sortedEdges.length; i++) {
+                    const e = sortedEdges[i];
+                    const key = [e.u, e.v].sort().join('_');
+
+                    const activeStatuses = { ...edgeStatuses };
+                    activeStatuses[key] = 'active';
+
+                    list.push({
+                        type: 'checking-cycle',
+                        iteration: 6,
+                        edgeIndex: i,
+                        dist: { ...dist },
+                        parents: { ...parent },
+                        lastUpdatedIter: { ...lastUpdatedIter },
+                        edgeStatuses: activeStatuses,
+                        activeEdgeKey: key,
+                        u: e.u,
+                        v: e.v,
+                        w: e.w,
+                        log: `[Cycle Check] Checking edge (${e.u}, ${e.v}) for negative cycles.`,
+                        explanation: `Checking cycle on ${e.u}—${e.v}.`
+                    });
+
+                    // Negative cycle check logic
+                    if ((dist[e.u] !== Infinity && dist[e.u] + e.w < dist[e.v]) || 
+                        (dist[e.v] !== Infinity && dist[e.v] + e.w < dist[e.u])) {
+                        list.push({
+                            type: 'cycle-found',
+                            iteration: 6,
+                            edgeIndex: i,
+                            dist: { ...dist },
+                            parents: { ...parent },
+                            lastUpdatedIter: { ...lastUpdatedIter },
+                            edgeStatuses: { ...edgeStatuses },
+                            activeEdgeKey: key,
+                            u: e.u,
+                            v: e.v,
+                            w: e.w,
+                            log: `<span class="danger-text">Negative Weight Cycle Detected!</span> Distance values continue to decrease on edge (${e.u}, ${e.v}).`,
+                            explanation: 'Negative cycle found.'
+                        });
+                        break;
+                    }
+                }
+
+                // Final Completed step
+                if (list[list.length - 1].type !== 'cycle-found') {
+                    list.push({
+                        type: 'done',
+                        iteration: 5,
+                        edgeIndex: -1,
+                        dist: { ...dist },
+                        parents: { ...parent },
+                        lastUpdatedIter: { ...lastUpdatedIter },
+                        edgeStatuses: { ...edgeStatuses },
+                        activeEdgeKey: null,
+                        log: `<span class="success-text">Bellman-Ford complete! No negative cycles found.</span> Hover over nodes to trace shortest paths from Node ${root}.`,
+                        explanation: 'Shortest paths computed.'
+                    });
+                }
+
+                return list;
+            }
+
+            // Render step state visually
+            function renderStep(index) {
+                const step = steps[index];
+                if (!step) return;
+
+                // 1. Update iteration badge
+                if (step.iteration === 6) {
+                    iterationBadge.textContent = `Iter: Cycle Check`;
+                } else {
+                    iterationBadge.textContent = `Iter: ${step.iteration} / 5`;
+                }
+
+                // 2. Reset visual classes on nodes
+                nodes.forEach(n => {
+                    const el = nodeElems[n];
+                    el.className = 'node'; // reset classes
+                    
+                    if (n === startNode) {
+                        el.classList.add('start-node');
+                    }
+
+                    // Update label dist:
+                    const d = step.dist[n];
+                    distTagElems[n].textContent = `dist: ${d === Infinity ? '∞' : d}`;
+                });
+
+                // Reset edge classes
+                for (const key in edgeElems) {
+                    edgeElems[key].setAttribute('class', 'edge');
+                    weightElems[key].setAttribute('class', 'edge-weight');
+
+                    const status = step.edgeStatuses[key];
+                    if (status === 'active') {
+                        edgeElems[key].classList.add('highlight');
+                        weightElems[key].classList.add('highlight');
+                    } else if (status === 'relaxed') {
+                        edgeElems[key].classList.add('mst');
+                        weightElems[key].classList.add('mst');
+                    }
+                }
+
+                // Node highlight during checks
+                if (step.type === 'relaxing' || step.type === 'relax-success' || step.type === 'relax-fail' || step.type === 'checking-cycle') {
+                    nodeElems[step.u].classList.add('current');
+                    nodeElems[step.v].classList.add('current');
+                }
+
+                // 3. Render Table
+                stateTableBody.innerHTML = '';
+                nodes.forEach(n => {
+                    const tr = document.createElement('tr');
+                    
+                    const isUpdating = (step.type === 'relax-success' && (step.v === n || step.u === n) && step.dist[n] < Infinity);
+                    if (isUpdating) {
+                        tr.classList.add('row-updating');
+                    }
+
+                    const tdn = document.createElement('td'); 
+                    tdn.innerHTML = `<b>Node ${n}</b>`;
+
+                    const tdd = document.createElement('td'); 
+                    tdd.textContent = step.dist[n] === Infinity ? '∞' : step.dist[n];
+
+                    const tdp = document.createElement('td'); 
+                    tdp.textContent = step.parents[n] === null ? '-' : `Node ${step.parents[n]}`;
+
+                    const tds = document.createElement('td');
+                    tds.textContent = step.lastUpdatedIter[n];
+
+                    tr.appendChild(tdn); 
+                    tr.appendChild(tdd); 
+                    tr.appendChild(tdp); 
+                    tr.appendChild(tds);
+                    stateTableBody.appendChild(tr);
+                });
+
+                // 4. Render Edge Queue list
+                queueDiv.innerHTML = '';
+                sortedEdges.forEach((e, idx) => {
+                    const key = [e.u, e.v].sort().join('_');
+                    const status = step.edgeStatuses[key];
+
+                    const el = document.createElement('div');
+                    el.className = 'item';
+                    
+                    if (step.edgeIndex === idx) el.classList.add('active');
+                    else if (status === 'relaxed') el.classList.add('accepted');
+
+                    el.innerHTML = `${e.u}-${e.v}<span class="item-val">wt:${e.w}</span>`;
+                    queueDiv.appendChild(el);
+                });
+
+                // 5. Update logs up to current step
+                logDiv.innerHTML = '';
+                for (let i = 0; i <= index; i++) {
+                    const d = document.createElement('div');
+                    d.innerHTML = steps[i].log;
+                    logDiv.appendChild(d);
+                }
+                logDiv.scrollTop = logDiv.scrollHeight;
+
+                updateButtons();
+                setupHoverListeners();
+            }
+
+            function updateButtons() {
+                btnPrev.disabled = (currentStepIndex === 0) || playing;
+                btnStep.disabled = (currentStepIndex === steps.length - 1) || playing;
+                btnPlay.disabled = (currentStepIndex === steps.length - 1) || playing;
+                btnPause.disabled = !playing;
+            }
+
+            function reset() {
+                stopPlay();
+                steps = generateAllSteps(startNode);
+                currentStepIndex = 0;
+                renderStep(0);
+            }
+
+            function stepForward() {
+                if (currentStepIndex < steps.length - 1) {
+                    currentStepIndex++;
+                    renderStep(currentStepIndex);
+                }
+            }
+
+            function stepBackward() {
+                if (currentStepIndex > 0) {
+                    currentStepIndex--;
+                    renderStep(currentStepIndex);
+                }
+            }
+
+            function play() {
+                if (playing) return;
+                playing = true;
+                updateButtons();
+
+                const speed = parseInt(speedSelect.value, 10);
+                
+                const tick = () => {
+                    if (!playing) return;
+                    if (currentStepIndex < steps.length - 1) {
+                        stepForward();
+                        timer = setTimeout(tick, speed);
+                    } else {
+                        stopPlay();
+                    }
+                };
+
+                timer = setTimeout(tick, 0);
+            }
+
+            function stopPlay() {
+                playing = false;
+                if (timer) clearTimeout(timer);
+                timer = null;
+                updateButtons();
+            }
+
+            // Click node to select as start root (before starting simulation)
+            nodes.forEach(n => {
+                nodeElems[n].addEventListener('click', () => {
+                    if (steps[currentStepIndex].type === 'done') {
+                        startNode = n;
+                        reset();
+                        return;
+                    }
+
+                    if (currentStepIndex > 0) {
+                        if (confirm(`Reset and start Bellman-Ford's algorithm from Node ${n}?`)) {
+                            startNode = n;
+                            reset();
+                        }
+                    } else {
+                        startNode = n;
+                        reset();
+                    }
+                });
+            });
+
+            // Path hover tracer feature (Only active when simulation reaches 'done' completed state)
+            function setupHoverListeners() {
+                const isDone = steps[currentStepIndex].type === 'done';
+
+                nodes.forEach(n => {
+                    const el = nodeElems[n];
+                    
+                    // Remove old listeners to avoid multiple attachments
+                    const clone = el.cloneNode(true);
+                    el.parentNode.replaceChild(clone, el);
+                    nodeElems[n] = clone;
+                    distTagElems[n] = clone.querySelector('.dist-tag');
+
+                    // Rebind node click
+                    nodeElems[n].addEventListener('click', () => {
+                        if (isDone) {
+                            startNode = n;
+                            reset();
+                            return;
+                        }
+                        if (currentStepIndex > 0) {
+                            if (confirm(`Reset and start Bellman-Ford's algorithm from Node ${n}?`)) {
+                                startNode = n;
+                                reset();
+                            }
+                        } else {
+                            startNode = n;
+                            reset();
+                        }
+                    });
+
+                    if (isDone) {
+                        nodeElems[n].addEventListener('mouseenter', (e) => {
+                            tracePath(n);
+                        });
+                        nodeElems[n].addEventListener('mouseleave', () => {
+                            clearPathTrace();
+                        });
+                    }
+                });
+            }
+
+            function tracePath(n) {
+                const step = steps[currentStepIndex];
+                if (step.dist[n] === Infinity) return; // Unreachable node
+
+                let path = [];
+                let curr = n;
+                while (curr !== null) {
+                    path.unshift(curr);
+                    curr = step.parents[curr];
+                }
+
+                // Add path-highlight visual class to nodes
+                path.forEach(node => {
+                    nodeElems[node].classList.add('path-highlight');
+                });
+
+                // Add path-highlight visual class to edges
+                for (let i = 0; i < path.length - 1; i++) {
+                    const key = [path[i], path[i+1]].sort().join('_');
+                    if (edgeElems[key]) edgeElems[key].classList.add('path-highlight');
+                    if (weightElems[key]) weightElems[key].classList.add('path-highlight');
+                }
+
+                // Position and show dynamic glassmorphic path tooltip
+                const hoveredEl = nodeElems[n];
+                const rect = hoveredEl.getBoundingClientRect();
+                const containerRect = document.getElementById('graph').getBoundingClientRect();
+                
+                const leftOffset = rect.left - containerRect.left + rect.width/2;
+                const topOffset = rect.top - containerRect.top;
+
+                pathTooltip.style.left = `${leftOffset}px`;
+                pathTooltip.style.top = `${topOffset}px`;
+                pathTooltip.style.display = 'block';
+                pathTooltip.querySelector('span').textContent = `${path.join(' ➔ ')}`;
+                pathTooltip.innerHTML = `Shortest Path to Node ${n}: <span>${path.join(' ➔ ')}</span> (cost: <b>${step.dist[n]}</b>)`;
+            }
+
+            function clearPathTrace() {
+                nodes.forEach(n => {
+                    nodeElems[n].classList.remove('path-highlight');
+                });
+                for (const key in edgeElems) {
+                    edgeElems[key].classList.remove('path-highlight');
+                    weightElems[key].classList.remove('path-highlight');
+                }
+                pathTooltip.style.display = 'none';
+            }
+
+            // Wire up controls
+            btnPrev.addEventListener('click', stepBackward);
+            btnStep.addEventListener('click', stepForward);
+            btnPlay.addEventListener('click', play);
+            btnPause.addEventListener('click', stopPlay);
+            btnReset.addEventListener('click', reset);
+            speedSelect.addEventListener('change', () => {
+                if (playing) {
+                    stopPlay();
+                    play();
+                }
+            });
+
+            // Initialize
+            reset();
+        })();
+    </script>
+</body>
+
+</html>

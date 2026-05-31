@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>HTML + CSS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: blue;
+        }
+        p {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Belajar Web Dasar</h1>
+    <p>Ini contoh HTML yang sudah diberi CSS.</p>
+
+</body>
+</html>

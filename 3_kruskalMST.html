@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Kruskal's Minimum Spanning Tree - Step by Step</title>
+    <style>
+        :root {
+            --bg-1: #eef6fb;
+            --bg-2: #ffffff;
+            --panel: rgba(255, 255, 255, 0.75);
+            --muted: #6b7280;
+            --accent: #3b82f6;
+            --accent-2: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --glass-border: rgba(99, 102, 241, 0.12);
+            --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --glass-radius: 12px;
+            font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 16px;
+            background: radial-gradient(1200px 400px at 10% 10%, rgba(59, 130, 246, 0.06), transparent 8%),
+                linear-gradient(180deg, var(--bg-1), var(--bg-2));
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        h2 {
+            margin: 0 0 4px 0;
+            font-weight: 700;
+            color: #0b1220;
+            letter-spacing: 0.2px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin: 0 0 16px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        button,
+        select {
+            appearance: none;
+            border: none;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(243, 244, 246, 0.9));
+            border-radius: 10px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 6px rgba(2, 6, 23, 0.06);
+            cursor: pointer;
+            color: #0b1220;
+            font-weight: 600;
+            transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+            border: 1px solid rgba(15, 23, 42, 0.06);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(2, 6, 23, 0.08);
+        }
+
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #btnPlay {
+            background: linear-gradient(180deg, var(--accent), #2563eb);
+            color: white;
+        }
+
+        #btnPause {
+            background: linear-gradient(180deg, #f97316, #ea580c);
+            color: white;
+        }
+
+        #btnReset {
+            background: linear-gradient(180deg, #efefef, #e6eefc);
+            color: #0b1220;
+        }
+
+        #btnStep,
+        #btnPrev {
+            background: linear-gradient(180deg, #fff, #f7fafc);
+        }
+
+        label {
+            color: var(--muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Graph card */
+        .graph {
+            width: 560px;
+            height: 360px;
+            border-radius: var(--glass-radius);
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.75));
+            padding: 8px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        /* subtle grid background */
+        .graph::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px, 60px 60px;
+            pointer-events: none;
+            opacity: .6;
+        }
+
+        svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .node {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #fff, #f3f6ff);
+            border: 2px solid rgba(15, 23, 42, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #0b1220;
+            font-size: 16px;
+            transition: background .25s, transform .18s, box-shadow .18s, border-color .18s;
+            box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06), inset 0 -3px 6px rgba(255, 255, 255, 0.7);
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .node:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.08);
+        }
+
+        /* Styling for DSU set tag inside node */
+        .node .set-tag {
+            font-size: 9px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .node.processed {
+            background: linear-gradient(180deg, #bbf7d0, #34d399);
+            border-color: rgba(16, 185, 129, 0.9);
+            color: #064e3b;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.14);
+        }
+
+        .node.processed .set-tag {
+            color: #064e3b;
+            font-weight: 600;
+        }
+
+        .node.current {
+            background: linear-gradient(180deg, #fff3db, #ffd166);
+            border-color: rgba(249, 115, 22, 0.95);
+            transform: scale(1.08);
+            box-shadow: 0 10px 28px rgba(249, 115, 22, 0.14);
+            color: #4b2e00;
+        }
+
+        .node.current .set-tag {
+            color: #4b2e00;
+            font-weight: 600;
+        }
+
+        /* Node belongs to the same DSU set as focusNode */
+        .node.focused {
+            border-color: var(--accent);
+            box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+            background: linear-gradient(180deg, #dbeafe, #93c5fd);
+            color: #1e3a8a;
+        }
+
+        .node.focused .set-tag {
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+
+        /* focus node badge indicator */
+        .node.focus-root::after {
+            content: "FOCUS";
+            position: absolute;
+            top: -15px;
+            background: var(--accent);
+            color: white;
+            font-size: 8px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* edges */
+        .edge {
+            stroke: #cbd5e1;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            transition: stroke .2s, stroke-width .15s, filter .15s;
+        }
+
+        .edge.highlight {
+            stroke: var(--accent-2);
+            stroke-width: 5;
+            filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.6));
+        }
+
+        .edge.mst {
+            stroke: var(--success);
+            stroke-width: 6;
+            filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+        }
+
+        .edge.rejected {
+            stroke: var(--danger);
+            stroke-width: 5;
+            filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+        }
+
+        /* Glassmorphic edge weights */
+        .edge-weight {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #1e293b;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            user-select: none;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .edge-weight.highlight {
+            background: var(--accent-2);
+            color: white;
+            border-color: var(--accent-2);
+            transform: translate(-50%, -50%) scale(1.15);
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
+        }
+
+        .edge-weight.mst {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .edge-weight.rejected {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+        }
+
+        /* right info card */
+        .info {
+            width: 400px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(250, 250, 255, 0.7));
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .info h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0b1220;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-section {
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            padding-bottom: 10px;
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: transparent;
+            margin-top: 6px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 6px 8px;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        td,
+        th {
+            padding: 5px 8px;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 13px;
+            color: #0b1220;
+        }
+
+        tbody tr {
+            border-top: 1px solid rgba(15, 23, 42, 0.04);
+            transition: background-color 0.15s ease;
+        }
+
+        tbody tr.row-updating {
+            background-color: rgba(249, 115, 22, 0.1) !important;
+        }
+
+        tbody tr.row-focused {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+        }
+
+        tbody tr:nth-child(odd):not(.row-updating):not(.row-focused) {
+            background: linear-gradient(90deg, rgba(250, 250, 255, 0.4), transparent);
+        }
+
+        /* Edge Queue visualizer */
+        .queue {
+            min-height: 48px;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            background: linear-gradient(180deg, #fffef6, #fffbf1);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: inset 0 2px 0 rgba(15, 23, 42, 0.02);
+            border: 1px solid rgba(245, 158, 11, 0.08);
+        }
+
+        .queue .item {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #0b1220;
+            font-weight: 700;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            font-size: 11.5px;
+            transition: all 0.2s ease;
+        }
+
+        .queue .item.active {
+            border-color: var(--accent-2);
+            background: var(--accent-2);
+            color: white;
+            transform: scale(1.08);
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2);
+        }
+
+        .queue .item.accepted {
+            border-color: var(--success);
+            background: var(--success);
+            color: white;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+        }
+
+        .queue .item.rejected {
+            border-color: var(--danger);
+            background: var(--danger);
+            color: white;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
+            opacity: 0.65;
+        }
+
+        .queue .item .item-val {
+            font-size: 8.5px;
+            font-weight: 500;
+            color: var(--muted);
+            margin-top: 1px;
+        }
+
+        .queue .item.active .item-val,
+        .queue .item.accepted .item-val,
+        .queue .item.rejected .item-val {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .order {
+            min-height: 40px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #f4fffb, #ecfff6);
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            border: 1px solid rgba(16, 185, 129, 0.08);
+        }
+
+        .order .chip {
+            background: linear-gradient(180deg, #d1fae5, #bbf7d0);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            color: #064e3b;
+            font-size: 12px;
+            border: 1px solid rgba(16, 185, 129, 0.12);
+        }
+
+        .mst-weight-box {
+            background: var(--success);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .log {
+            height: 95px;
+            overflow: auto;
+            margin-top: 6px;
+            padding: 8px;
+            border-radius: 10px;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.04);
+            font-size: 12.5px;
+            color: #0f172a;
+            box-shadow: 0 4px 12px rgba(2, 6, 23, 0.03);
+        }
+
+        .log div {
+            padding: 4px 0;
+            border-bottom: 1px dashed rgba(15, 23, 42, 0.03);
+            line-height: 1.4;
+        }
+
+        .log div:last-child {
+            border-bottom: none;
+        }
+
+        .log .highlight-text {
+            color: var(--accent-2);
+            font-weight: 600;
+        }
+
+        .log .success-text {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .log .danger-text {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        @media (max-width:960px) {
+            .panel {
+                flex-direction: column;
+            }
+
+            .graph {
+                width: 100%;
+                height: 340px;
+            }
+
+            .info {
+                width: 100%;
+            }
+        }
+
+        /* Modal Backdrop */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: all 0.2s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--glass-radius);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 95%;
+            max-width: 440px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            padding-bottom: 10px;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0b1220;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--muted);
+            line-height: 1;
+            padding: 4px;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px 15px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .modal-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .modal-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-field input {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            width: 80px;
+            transition: border-color 0.15s ease;
+        }
+
+        .modal-field input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+            padding-top: 15px;
+        }
+
+        .modal-btn-save {
+            background: linear-gradient(180deg, var(--accent), #2563eb);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Kruskal's Minimum Spanning Tree (MST) Simulation</h2>
+    <p class="subtitle">Interactive visualization of Kruskal's greedy algorithm on a sorted edge queue. Click on any
+        node to make it the focus node and track its disjoint set.</p>
+
+    <div class="controls">
+        <button id="btnPrev" disabled>Prev</button>
+        <button id="btnStep">Step</button>
+        <button id="btnPlay">Play</button>
+        <button id="btnPause" disabled>Pause</button>
+        <button id="btnReset">Reset</button>
+        <label>Speed:
+            <select id="speed">
+                <option value="1500">Slow</option>
+                <option value="900" selected>Normal</option>
+                <option value="400">Fast</option>
+            </select>
+        </label>
+        <label style="margin-left: 10px;">Priority:
+            <select id="priorityMode">
+                <option value="min" selected>Min-Priority (MST)</option>
+                <option value="max">Max-Priority (MaxST)</option>
+            </select>
+        </label>
+        <button id="btnEditWeights" style="background: linear-gradient(180deg, #6366f1, #4f46e5); color: white;">Edit
+            Weights</button>
+    </div>
+
+    <div class="panel">
+        <div>
+            <div class="graph" id="graph">
+                <svg width="560" height="360">
+                    <!-- Edges will be drawn here -->
+                </svg>
+
+                <!-- Nodes (Coordinates identical to primMST.html for perfect spatial match) -->
+                <div class="node" id="n1" style="left:50px; top:150px">1<span class="set-tag">set: {1}</span></div>
+                <div class="node" id="n2" style="left:330px; top:30px">2<span class="set-tag">set: {2}</span></div>
+                <div class="node" id="n3" style="left:150px; top:30px">3<span class="set-tag">set: {3}</span></div>
+                <div class="node" id="n4" style="left:150px; top:270px">4<span class="set-tag">set: {4}</span></div>
+                <div class="node" id="n5" style="left:330px; top:270px">5<span class="set-tag">set: {5}</span></div>
+                <div class="node" id="n6" style="left:450px; top:150px">6<span class="set-tag">set: {6}</span></div>
+
+                <!-- Edge weights positioned absolutely at exact midpoints -->
+                <div class="edge-weight" id="ew_1_4">5</div>
+                <div class="edge-weight" id="ew_1_2">10</div>
+                <div class="edge-weight" id="ew_1_3">1</div>
+                <div class="edge-weight" id="ew_2_3">8</div>
+                <div class="edge-weight" id="ew_2_6">1</div>
+                <div class="edge-weight" id="ew_2_5">1</div>
+                <div class="edge-weight" id="ew_3_4">3</div>
+                <div class="edge-weight" id="ew_3_6">6</div>
+                <div class="edge-weight" id="ew_4_5">4</div>
+                <div class="edge-weight" id="ew_5_6">2</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <div class="info-section">
+                <h4>Disjoint Set Union (DSU) Status</h4>
+                <table id="stateTable">
+                    <thead>
+                        <tr>
+                            <th>Node</th>
+                            <th>Parent</th>
+                            <th>Rank</th>
+                            <th>DSU Set Members</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="info-section">
+                <h4>Sorted Edge Queue</h4>
+                <div class="queue" id="queue"></div>
+            </div>
+
+            <div class="info-section">
+                <h4>MST Edges Chosen <span class="mst-weight-box" id="mstWeight">Total: 0</span></h4>
+                <div class="order" id="order"></div>
+            </div>
+
+            <div class="info-section">
+                <h4>Execution Log</h4>
+                <div class="log" id="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // Unweighted graph structure & layout variables
+            const nodes = [1, 2, 3, 4, 5, 6];
+            let edges = [
+                { u: 1, v: 4, w: 5 },
+                { u: 1, v: 2, w: 10 },
+                { u: 1, v: 3, w: 1 },
+                { u: 2, v: 3, w: 8 },
+                { u: 2, v: 6, w: 1 },
+                { u: 2, v: 5, w: 1 },
+                { u: 3, v: 4, w: 3 },
+                { u: 3, v: 6, w: 6 },
+                { u: 4, v: 5, w: 4 },
+                { u: 5, v: 6, w: 2 }
+            ];
+
+            // Dynamic sorting based on edge weight priority
+            let sortedEdges = [];
+            function sortEdges() {
+                const mode = prioritySelect.value;
+                if (mode === 'min') {
+                    sortedEdges = [...edges].sort((a, b) => a.w - b.w || a.u - b.u || a.v - b.v);
+                } else {
+                    sortedEdges = [...edges].sort((a, b) => b.w - a.w || a.u - b.u || a.v - b.v);
+                }
+            }
+
+            // UI elements
+            const stateTableBody = document.querySelector('#stateTable tbody');
+            const queueDiv = document.getElementById('queue');
+            const orderDiv = document.getElementById('order');
+            const logDiv = document.getElementById('log');
+            const mstWeightSpan = document.getElementById('mstWeight');
+            const btnPrev = document.getElementById('btnPrev');
+            const btnStep = document.getElementById('btnStep');
+            const btnPlay = document.getElementById('btnPlay');
+            const btnPause = document.getElementById('btnPause');
+            const btnReset = document.getElementById('btnReset');
+            const speedSelect = document.getElementById('speed');
+            const prioritySelect = document.getElementById('priorityMode');
+            const editWeightsModal = document.getElementById('editWeightsModal');
+            const modalGrid = document.getElementById('modalGrid');
+            const btnEditWeights = document.getElementById('btnEditWeights');
+            const btnModalClose = document.getElementById('btnModalClose');
+            const btnModalCancel = document.getElementById('btnModalCancel');
+            const btnModalSave = document.getElementById('btnModalSave');
+            const svg = document.querySelector('#graph svg');
+
+            const nodeElems = {};
+            const setTagElems = {};
+            nodes.forEach(n => {
+                nodeElems[n] = document.getElementById('n' + n);
+                setTagElems[n] = nodeElems[n].querySelector('.set-tag');
+            });
+
+            // Locate node center coordinates
+            const nodeCenters = {};
+            nodes.forEach(n => {
+                const el = nodeElems[n];
+                const left = parseFloat(el.style.left);
+                const top = parseFloat(el.style.top);
+                nodeCenters[n] = {
+                    x: left + el.offsetWidth / 2,
+                    y: top + el.offsetHeight / 2
+                };
+            });
+
+            // Set up SVG Edges
+            const edgeElems = {};
+            const weightElems = {};
+            edges.forEach(e => {
+                const a = nodeCenters[e.u], b = nodeCenters[e.v];
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', a.x);
+                line.setAttribute('y1', a.y);
+                line.setAttribute('x2', b.x);
+                line.setAttribute('y2', b.y);
+                line.setAttribute('class', 'edge');
+                line.setAttribute('id', `e_${e.u}_${e.v}`);
+                svg.appendChild(line);
+
+                const key = [e.u, e.v].sort().join('_');
+                edgeElems[key] = line;
+
+                const label = document.getElementById(`ew_${e.u}_${e.v}`);
+                if (label) {
+                    const midX = (a.x + b.x) / 2;
+                    const midY = (a.y + b.y) / 2;
+                    label.style.left = `${midX}px`;
+                    label.style.top = `${midY}px`;
+                    weightElems[key] = label;
+                }
+            });
+
+            // State management
+            let focusNode = 1; // Used to seed disjoint set visual highlighting
+            let steps = [];
+            let currentStepIndex = 0;
+            let playing = false;
+            let timer = null;
+
+            // Helper to compute set representative
+            function findRoot(parent, i) {
+                let curr = i;
+                while (parent[curr] !== curr) {
+                    curr = parent[curr];
+                }
+                return curr;
+            }
+
+            // Helper to get sets list
+            function getSets(parent) {
+                const sets = {};
+                nodes.forEach(n => {
+                    const r = findRoot(parent, n);
+                    if (!sets[r]) sets[r] = [];
+                    sets[r].push(n);
+                });
+                return sets;
+            }
+
+            // Generate deterministic Kruskal micro-steps
+            function generateAllSteps() {
+                const list = [];
+                const parent = {};
+                const rank = {};
+                const edgeStatuses = {}; // edgeKey -> 'pending', 'active-checking', 'accepted', 'rejected'
+
+                nodes.forEach(n => {
+                    parent[n] = n;
+                    rank[n] = 0;
+                });
+
+                sortedEdges.forEach(e => {
+                    const key = [e.u, e.v].sort().join('_');
+                    edgeStatuses[key] = 'pending';
+                });
+
+                // 1. Initial State
+                list.push({
+                    type: 'init',
+                    parent: { ...parent },
+                    rank: { ...rank },
+                    mstEdges: [],
+                    edgeStatuses: { ...edgeStatuses },
+                    activeEdgeKey: null,
+                    log: `Initialized Kruskal's MST. All ${nodes.length} nodes start in their own disjoint sets. Edges sorted by weight in queue.`,
+                    explanation: 'Initialized DSU sets.'
+                });
+
+                const activeMstEdges = [];
+
+                for (let i = 0; i < sortedEdges.length; i++) {
+                    const e = sortedEdges[i];
+                    const key = [e.u, e.v].sort().join('_');
+
+                    // A. Checking Edge Step
+                    const checkStatuses = { ...edgeStatuses };
+                    checkStatuses[key] = 'active-checking';
+
+                    list.push({
+                        type: 'checking',
+                        parent: { ...parent },
+                        rank: { ...rank },
+                        mstEdges: [...activeMstEdges],
+                        edgeStatuses: checkStatuses,
+                        activeEdgeKey: key,
+                        u: e.u,
+                        v: e.v,
+                        w: e.w,
+                        log: `Evaluating cheapest remaining edge <span class="highlight-text">(${e.u}—${e.v})</span> with weight <b>${e.w}</b>.`,
+                        explanation: `Evaluating edge ${e.u}—${e.v}.`
+                    });
+
+                    // B. Evaluate Union
+                    const rootU = findRoot(parent, e.u);
+                    const rootV = findRoot(parent, e.v);
+
+                    if (rootU !== rootV) {
+                        // Union success
+                        if (rank[rootU] < rank[rootV]) {
+                            parent[rootU] = rootV;
+                        } else if (rank[rootU] > rank[rootV]) {
+                            parent[rootV] = rootU;
+                        } else {
+                            parent[rootV] = rootU;
+                            rank[rootU]++;
+                        }
+
+                        activeMstEdges.push({ u: e.u, v: e.v, w: e.w });
+                        edgeStatuses[key] = 'accepted';
+
+                        list.push({
+                            type: 'union-success',
+                            parent: { ...parent },
+                            rank: { ...rank },
+                            mstEdges: [...activeMstEdges],
+                            edgeStatuses: { ...edgeStatuses },
+                            activeEdgeKey: key,
+                            u: e.u,
+                            v: e.v,
+                            w: e.w,
+                            log: `Node ${e.u} (root ${rootU}) and Node ${e.v} (root ${rootV}) are in different sets. <span class="success-text">Merged sets!</span> Added edge to MST.`,
+                            explanation: `Merged sets of ${e.u} and ${e.v}.`
+                        });
+                    } else {
+                        // Cycle detected
+                        edgeStatuses[key] = 'rejected';
+
+                        list.push({
+                            type: 'cycle-detected',
+                            parent: { ...parent },
+                            rank: { ...rank },
+                            mstEdges: [...activeMstEdges],
+                            edgeStatuses: { ...edgeStatuses },
+                            activeEdgeKey: key,
+                            u: e.u,
+                            v: e.v,
+                            w: e.w,
+                            log: `Node ${e.u} and Node ${e.v} already share the representative root <b>${rootU}</b>. <span class="danger-text">Cycle detected!</span> Skipping edge.`,
+                            explanation: `Cycle detected on ${e.u}—${e.v}.`
+                        });
+                    }
+
+                    // Optional: early exit if we found V-1 edges
+                    if (activeMstEdges.length === nodes.length - 1) {
+                        // Mark all remaining pending edges as rejected/skipped
+                        sortedEdges.slice(i + 1).forEach(rem => {
+                            const remKey = [rem.u, rem.v].sort().join('_');
+                            edgeStatuses[remKey] = 'rejected';
+                        });
+
+                        list.push({
+                            type: 'done-early',
+                            parent: { ...parent },
+                            rank: { ...rank },
+                            mstEdges: [...activeMstEdges],
+                            edgeStatuses: { ...edgeStatuses },
+                            activeEdgeKey: null,
+                            log: `<span class="success-text">MST complete!</span> Collected ${nodes.length - 1} edges. Skipping remaining heavier edges.`,
+                            explanation: 'MST constructed.'
+                        });
+                        break;
+                    }
+                }
+
+                // If finished sortedEdges but still didn't reach V-1 (disconnected graph)
+                if (list[list.length - 1].type !== 'done-early') {
+                    list.push({
+                        type: 'done',
+                        parent: { ...parent },
+                        rank: { ...rank },
+                        mstEdges: [...activeMstEdges],
+                        edgeStatuses: { ...edgeStatuses },
+                        activeEdgeKey: null,
+                        log: `<span class="success-text">Kruskal's algorithm finished.</span> Total MST weight is <b>${activeMstEdges.reduce((sum, e) => sum + e.w, 0)}</b>.`,
+                        explanation: 'Done.'
+                    });
+                }
+
+                return list;
+            }
+
+            // Render current step state visually
+            function renderStep(index) {
+                const step = steps[index];
+                if (!step) return;
+
+                // A. Find sets for focus highlights
+                const sets = getSets(step.parent);
+                const focusRoot = findRoot(step.parent, focusNode);
+                const focusSet = sets[focusRoot] || [];
+
+                // B. Reset visual classes on nodes
+                nodes.forEach(n => {
+                    const el = nodeElems[n];
+                    el.classList.remove('processed', 'current', 'focused', 'focus-root');
+
+                    // Show starting/focus node badge
+                    if (n === focusNode) {
+                        el.classList.add('focus-root');
+                    }
+
+                    // Highlight other nodes in same DSU set as focusNode
+                    if (focusSet.includes(n)) {
+                        el.classList.add('focused');
+                    }
+
+                    // Update node sub-tags showing set members in sorted format
+                    const root = findRoot(step.parent, n);
+                    const nSet = sets[root] ? sets[root].sort((a, b) => a - b) : [n];
+                    setTagElems[n].textContent = `set: {${nSet.join(',')}}`;
+                });
+
+                // C. Reset/Apply edge classes
+                for (const key in edgeElems) {
+                    edgeElems[key].setAttribute('class', 'edge');
+                    weightElems[key].setAttribute('class', 'edge-weight');
+
+                    const status = step.edgeStatuses[key];
+                    if (status === 'active-checking') {
+                        edgeElems[key].classList.add('highlight');
+                        weightElems[key].classList.add('highlight');
+                    } else if (status === 'accepted') {
+                        edgeElems[key].classList.add('mst');
+                        weightElems[key].classList.add('mst');
+                    } else if (status === 'rejected') {
+                        edgeElems[key].classList.add('rejected');
+                        weightElems[key].classList.add('rejected');
+                    }
+                }
+
+                // Node highlight during checks
+                if (step.type === 'checking' || step.type === 'union-success' || step.type === 'cycle-detected') {
+                    nodeElems[step.u].classList.add('current');
+                    nodeElems[step.v].classList.add('current');
+                }
+
+                // D. Render MST sum
+                let totalWeightSum = step.mstEdges.reduce((sum, e) => sum + e.w, 0);
+                mstWeightSpan.textContent = `Total: ${totalWeightSum}`;
+
+                // E. Render DSU Table
+                stateTableBody.innerHTML = '';
+                nodes.forEach(n => {
+                    const tr = document.createElement('tr');
+
+                    // Highlight rows that are in the same disjoint set as focusNode
+                    if (focusSet.includes(n)) {
+                        tr.classList.add('row-focused');
+                    }
+
+                    const tdn = document.createElement('td');
+                    tdn.innerHTML = `<b>Node ${n}</b>`;
+
+                    const tdp = document.createElement('td');
+                    tdp.textContent = `Node ${step.parent[n]}`;
+
+                    const tdr = document.createElement('td');
+                    tdr.textContent = step.rank[n];
+
+                    const root = findRoot(step.parent, n);
+                    const nSet = sets[root] ? sets[root].sort((a, b) => a - b) : [n];
+
+                    const tds = document.createElement('td');
+                    tds.textContent = `{${nSet.join(', ')}}`;
+
+                    tr.appendChild(tdn);
+                    tr.appendChild(tdp);
+                    tr.appendChild(tdr);
+                    tr.appendChild(tds);
+                    stateTableBody.appendChild(tr);
+                });
+
+                // F. Render Edge Queue list
+                queueDiv.innerHTML = '';
+                sortedEdges.forEach(e => {
+                    const key = [e.u, e.v].sort().join('_');
+                    const status = step.edgeStatuses[key];
+
+                    const el = document.createElement('div');
+                    el.className = 'item';
+
+                    if (status === 'active-checking') el.classList.add('active');
+                    else if (status === 'accepted') el.classList.add('accepted');
+                    else if (status === 'rejected') el.classList.add('rejected');
+
+                    el.innerHTML = `${e.u}-${e.v}<span class="item-val">wt:${e.w}</span>`;
+                    queueDiv.appendChild(el);
+                });
+
+                // G. Render MST Edges Chosen list
+                orderDiv.innerHTML = '';
+                if (step.mstEdges.length === 0) {
+                    orderDiv.innerHTML = '<span style="color:var(--muted); font-size:12px;">No edges in MST yet</span>';
+                } else {
+                    step.mstEdges.forEach(e => {
+                        const el = document.createElement('span');
+                        el.className = 'chip';
+                        el.textContent = `(${e.u}—${e.v}, wt:${e.w})`;
+                        orderDiv.appendChild(el);
+                    });
+                }
+
+                // H. Update logs up to current step
+                logDiv.innerHTML = '';
+                for (let i = 0; i <= index; i++) {
+                    const d = document.createElement('div');
+                    d.innerHTML = steps[i].log;
+                    logDiv.appendChild(d);
+                }
+                logDiv.scrollTop = logDiv.scrollHeight;
+
+                updateButtons();
+            }
+
+            function updateButtons() {
+                btnPrev.disabled = (currentStepIndex === 0) || playing;
+                btnStep.disabled = (currentStepIndex === steps.length - 1) || playing;
+                btnPlay.disabled = (currentStepIndex === steps.length - 1) || playing;
+                btnPause.disabled = !playing;
+            }
+
+            function reset() {
+                stopPlay();
+                sortEdges();
+                steps = generateAllSteps();
+                currentStepIndex = 0;
+                renderStep(0);
+            }
+
+            function stepForward() {
+                if (currentStepIndex < steps.length - 1) {
+                    currentStepIndex++;
+                    renderStep(currentStepIndex);
+                }
+            }
+
+            function stepBackward() {
+                if (currentStepIndex > 0) {
+                    currentStepIndex--;
+                    renderStep(currentStepIndex);
+                }
+            }
+
+            function play() {
+                if (playing) return;
+                playing = true;
+                updateButtons();
+
+                const speed = parseInt(speedSelect.value, 10);
+
+                const tick = () => {
+                    if (!playing) return;
+                    if (currentStepIndex < steps.length - 1) {
+                        stepForward();
+                        timer = setTimeout(tick, speed);
+                    } else {
+                        stopPlay();
+                    }
+                };
+
+                timer = setTimeout(tick, 0);
+            }
+
+            function stopPlay() {
+                playing = false;
+                if (timer) clearTimeout(timer);
+                timer = null;
+                updateButtons();
+            }
+
+            // Click node to select as focus/seeding node for set membership visualization
+            nodes.forEach(n => {
+                nodeElems[n].addEventListener('click', () => {
+                    focusNode = n;
+                    renderStep(currentStepIndex);
+                });
+            });
+
+            // Wire up controls
+            btnPrev.addEventListener('click', stepBackward);
+            btnStep.addEventListener('click', stepForward);
+            btnPlay.addEventListener('click', play);
+            btnPause.addEventListener('click', stopPlay);
+            btnReset.addEventListener('click', reset);
+            speedSelect.addEventListener('change', () => {
+                if (playing) {
+                    stopPlay();
+                    play();
+                }
+            });
+            prioritySelect.addEventListener('change', reset);
+
+            // Modal Edge Weight configurator setup
+            function populateModal() {
+                modalGrid.innerHTML = '';
+                edges.forEach((e, idx) => {
+                    const field = document.createElement('div');
+                    field.className = 'modal-field';
+
+                    const label = document.createElement('label');
+                    label.textContent = `Edge (${e.u}—${e.v}):`;
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '1';
+                    input.max = '99';
+                    input.value = e.w;
+                    input.id = `input_edge_${idx}`;
+
+                    field.appendChild(label);
+                    field.appendChild(input);
+                    modalGrid.appendChild(field);
+                });
+            }
+
+            btnEditWeights.addEventListener('click', () => {
+                populateModal();
+                editWeightsModal.classList.add('show');
+            });
+
+            function closeModal() {
+                editWeightsModal.classList.remove('show');
+            }
+
+            btnModalClose.addEventListener('click', closeModal);
+            btnModalCancel.addEventListener('click', closeModal);
+
+            btnModalSave.addEventListener('click', () => {
+                edges.forEach((e, idx) => {
+                    const input = document.getElementById(`input_edge_${idx}`);
+                    if (input) {
+                        e.w = parseInt(input.value, 10) || 1;
+                    }
+                });
+
+                // Update weight labels on graph SVG canvas
+                edges.forEach(e => {
+                    const label = document.getElementById(`ew_${e.u}_${e.v}`);
+                    if (label) {
+                        label.textContent = e.w;
+                    }
+                });
+
+                closeModal();
+                reset();
+            });
+
+            // Initialize
+            reset();
+        })();
+    </script>
+
+    <!-- Modal for editing edge weights -->
+    <div class="modal-overlay" id="editWeightsModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">Setup Edge Weights & Priorities</h3>
+                <button class="modal-close" id="btnModalClose">&times;</button>
+            </div>
+            <div class="modal-grid" id="modalGrid">
+                <!-- Inputs populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button id="btnModalCancel">Cancel</button>
+                <button class="modal-btn-save" id="btnModalSave">Apply & Restart</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
